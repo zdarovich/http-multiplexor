@@ -25,7 +25,7 @@ type (
 	}
 )
 
-
+// Simple http handler with graceful shutdown
 func main() {
 
 	mux := http.NewServeMux()
@@ -62,6 +62,7 @@ func main() {
 	log.Print("Server Exited Properly")
 }
 
+// Handles POST "/" path. Receives json. Responds with json. Limited to 100 clients
 func handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		statusStatusBadRequest(w, r, "Wrong path")
@@ -104,6 +105,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Rate limiter middleware
 func maxClients(h http.Handler, n int) http.Handler {
 	sema := make(chan struct{}, n)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -119,6 +121,7 @@ func maxClients(h http.Handler, n int) http.Handler {
 	})
 }
 
+// Method sends received urls to the channel
 func prepare(done <-chan interface{}, urls []string) <-chan string {
 	urlsChan := make(chan string)
 
@@ -136,6 +139,7 @@ func prepare(done <-chan interface{}, urls []string) <-chan string {
 	return urlsChan
 }
 
+// Method pulls from channel, calls provided urls and places them in the responses channel
 func fetch(done chan interface{}, urls <-chan string, fetcherID int) <-chan interface{} {
 	resps := make(chan interface{})
 
@@ -172,6 +176,7 @@ func fetch(done chan interface{}, urls <-chan string, fetcherID int) <-chan inte
 	return resps
 }
 
+// Fan in/out pipeline handles multiple goroutines and combines results into one channel
 func merge(done <-chan interface{}, channels ...<-chan interface{}) <-chan interface{} {
 	var wg sync.WaitGroup
 	multiplexedStream := make(chan interface{})
@@ -197,6 +202,7 @@ func merge(done <-chan interface{}, channels ...<-chan interface{}) <-chan inter
 	return multiplexedStream
 }
 
+// Method prevents goroutine leaks when pipeline is cancelled. Guarantees that running result will be completed during "done" channel call
 func orDone(done, c <-chan interface{}) <-chan interface{} {
 	valStream := make(chan interface{})
 	go func() {
